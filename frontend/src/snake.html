@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <title>You shouldn't be here</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      canvas {
+        border: 3px solid black;
+        background: white;
+        box-shadow: 5px 5px black;
+      }
+      .game-wrapper {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      #game-score {
+        margin-top: 1rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      #game-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body class="game-wrapper">
+    <span id="game-text" class="info-box">Uh oh...</span>
+    <canvas width="400" height="400" id="game"></canvas>
+    <span id="game-score">0</span>
+    <script>
+      {% include "snake.js" %}
+    </script>
+  </body>
+</html>

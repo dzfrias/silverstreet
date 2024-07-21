@@ -1,0 +1,22 @@
+{
+  "name": "graystreet",
+  "version": "1.0.0",
+  "main": ".eleventy.js",
+  "scripts": {
+    "sass": "sass --style=compressed --no-source-map=none src/css/style.scss dist/css/style.css",
+    "watch:eleventy": "eleventy --serve",
+    "watch:sass": "npm run sass -- --watch",
+    "start": "npm-run-all sass --parallel watch:*"
+  },
+  "keywords": [],
+  "author": "Diego Frias <styx5242@gmail.com>",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@11ty/eleventy": "^3.0.0-alpha.5",
+    "sass": "^1.77.8"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}

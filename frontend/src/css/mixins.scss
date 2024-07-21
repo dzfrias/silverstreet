@@ -1,0 +1,11 @@
+@mixin shadow($shadow: 0.1em, $hover: true) {
+  box-shadow: $shadow $shadow black;
+  border: 3px solid black;
+  background: white;
+
+  @if $hover {
+    &:hover {
+      box-shadow: ($shadow + 0.1) ($shadow + 0.1) black;
+    }
+  }
+}
