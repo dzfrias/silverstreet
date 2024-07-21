@@ -23,12 +23,12 @@ struct AppState {
     tx: broadcast::Sender<String>,
 }
 
-#[tokio::main]
-async fn main() {
+#[shuttle_runtime::main]
+async fn main() -> shuttle_axum::ShuttleAxum {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "example_chat=trace".into()),
+                .unwrap_or_else(|_| "silverstreet-server=trace".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -39,14 +39,12 @@ async fn main() {
 
     let app_state = Arc::new(AppState { user_set, tx });
 
-    let app = Router::new()
+    let router = Router::new()
         .route("/", get(index))
         .route("/websocket", get(websocket_handler))
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    Ok(router.into())
 }
 
 async fn websocket_handler(
