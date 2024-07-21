@@ -3,7 +3,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
-    response::{Html, IntoResponse},
+    response::IntoResponse,
     routing::get,
     Router,
 };
@@ -13,34 +13,23 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::sync::broadcast;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// Our shared state
+/// Main application state.
 struct AppState {
-    // We require unique usernames. This tracks which usernames have been taken.
+    /// This tracks which usernames have been taken, since all usernames must be unique.
     user_set: Mutex<HashSet<String>>,
-    // Channel used to send messages to all connected clients.
+    /// Channel used to send messages to all connected clients.
     tx: broadcast::Sender<String>,
 }
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "silverstreet-server=trace".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    // Set up application state for use with with_state().
     let user_set = Mutex::new(HashSet::new());
     let (tx, _rx) = broadcast::channel(100);
 
     let app_state = Arc::new(AppState { user_set, tx });
 
     let router = Router::new()
-        .route("/", get(index))
         .route("/websocket", get(websocket_handler))
         .with_state(app_state);
 
@@ -139,9 +128,4 @@ fn check_username(state: &AppState, string: &mut String, name: &str) {
 
         string.push_str(name);
     }
-}
-
-// Include utf-8 file at **compile** time.
-async fn index() -> Html<&'static str> {
-    Html("<h1>hello</h1>")
 }
