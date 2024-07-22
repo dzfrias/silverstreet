@@ -203,6 +203,12 @@
       });
       // Scroll to bottom when new message is added
       observer.observe(chat, { childList: true, subtree: true });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key == "Escape") {
+          window.location.href = "/";
+        }
+      });
     </script>
   </body>
 </html>
