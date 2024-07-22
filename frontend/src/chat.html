@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>SilverStreet Chat</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding-top: 2rem;
+      }
+
+      #name-box {
+        width: 50ch;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #username {
+        width: 15ch;
+        margin: 1rem 0rem;
+        height: 2rem;
+      }
+
+      #join-chat {
+        width: 2rem;
+        height: 2rem;
+      }
+
+      #chat {
+        width: 100%;
+        padding-bottom: 10%;
+      }
+
+      .message {
+        position: relative;
+        width: 40ch;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1rem;
+      }
+
+      #message-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .user {
+        text-align: center;
+        line-height: 1;
+        font-size: 0.9rem;
+      }
+
+      #input-container {
+        position: fixed;
+        bottom: 1rem;
+        width: 100%;
+      }
+
+      .theirs {
+        left: -5vw;
+      }
+
+      .mine {
+        left: 10vw;
+        font-weight: bold;
+      }
+
+      #username-container {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      #chat-input {
+        width: 30ch;
+        border: none;
+        box-shadow: none;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="display: none" id="chat">
+      <div style="width: 100%" id="message-container"></div>
+    </div>
+    <div class="info-box" id="input-container" style="display: none">
+      <input id="chat-input" type="text" placeholder="Something cool" />
+    </div>
+
+    <div class="info-box" id="name-box">
+      <h2>Enter your name</h2>
+      <div id="username-container">
+        <input id="username" type="text" placeholder="Not Diego" />
+        <button id="join-chat" type="button">
+          {% include "right-arrow.svg" %}
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const nameBox = document.getElementById("name-box");
+      const usernameInput = document.getElementById("username");
+      const messageContainer = document.getElementById("message-container");
+      const joinBtn = document.getElementById("join-chat");
+      const chat = document.getElementById("chat");
+      const chatInput = document.getElementById("chat-input");
+      const inputContainer = document.getElementById("input-container");
+
+      let username = "ERR";
+
+      function createMessage(user, contents) {
+        const theirs = user != username;
+        const message = document.createElement("div");
+        message.classList.add("message");
+        message.classList.add("info-box");
+        message.classList.add(theirs ? "theirs" : "mine");
+        if (theirs) {
+          const userSpan = document.createElement("span");
+          userSpan.classList.add("user");
+          userSpan.innerText = user;
+          message.appendChild(userSpan);
+        }
+        const p = document.createElement("p");
+        p.innerText = contents;
+        message.appendChild(p);
+        return message;
+      }
+
+      function loadChat() {
+        if (usernameInput.value === "") {
+          return;
+        }
+        nameBox.style.display = "none";
+        chat.style.display = "block";
+        inputContainer.style.display = "block";
+
+        const websocket = new WebSocket(
+          "wss://silverstreet-server.shuttleapp.rs/websocket",
+        );
+
+        websocket.onopen = () => {
+          console.log("connection opened");
+          websocket.send(usernameInput.value);
+          username = usernameInput.value;
+        };
+
+        websocket.onclose = () => {
+          nameBox.style.display = "block";
+          chat.style.display = "none";
+          inputContainer.style.display = "none";
+          console.log("connection closed");
+        };
+
+        websocket.onmessage = (e) => {
+          console.log("received message: " + e.data);
+          const message = JSON.parse(e.data);
+          if (message.type === "ChatMsgList") {
+            for (const msg of message.msgs) {
+              const messageElement = createMessage(msg.user, msg.contents);
+              messageContainer.appendChild(messageElement);
+            }
+            return;
+          }
+          if (message.type !== "ChatMsg") {
+            console.error(`got bad message: ${message}`);
+            return;
+          }
+          const messageElement = createMessage(message.user, message.contents);
+          messageContainer.appendChild(messageElement);
+        };
+
+        chatInput.onkeydown = (e) => {
+          if (e.key !== "Enter") return;
+          websocket.send(input.value);
+          input.value = "";
+        };
+      }
+
+      usernameInput.onkeydown = (e) => {
+        if (e.key !== "Enter") return;
+        loadChat();
+      };
+
+      joinBtn.addEventListener("click", loadChat);
+
+      const observer = new MutationObserver((mutationsList, observer) => {
+        for (let mutation of mutationsList) {
+          if (mutation.type === "childList") {
+            window.scrollTo(0, document.body.scrollHeight);
+          }
+        }
+      });
+      // Scroll to bottom when new message is added
+      observer.observe(chat, { childList: true, subtree: true });
+    </script>
+  </body>
+</html>
