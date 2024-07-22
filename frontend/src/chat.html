@@ -45,6 +45,10 @@
         margin-bottom: 1rem;
       }
 
+      .message p {
+        word-break: break-word;
+      }
+
       #message-container {
         display: flex;
         flex-direction: column;
@@ -178,8 +182,8 @@
 
         chatInput.onkeydown = (e) => {
           if (e.key !== "Enter") return;
-          websocket.send(input.value);
-          input.value = "";
+          websocket.send(chatInput.value);
+          chatInput.value = "";
         };
       }
 
