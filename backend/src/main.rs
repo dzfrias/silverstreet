@@ -85,6 +85,7 @@ async fn websocket_handler(
     ws.on_upgrade(|socket| websocket(socket, state))
 }
 
+/// Handles a single websocket connection.
 async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let (mut sender, mut receiver) = stream.split();
 
@@ -123,8 +124,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
             .collect::<Vec<ChatMsg>>(),
     });
 
-    // Spawn the first task that will receive broadcast messages and send text
-    // messages over the websocket to our client.
+    // Receives messages from the global receiver and forwards them to the conected client.
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             if sender
@@ -139,12 +139,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         }
     });
 
-    // Clone things we want to pass (move) to the receiving task.
     let state_clone = state.clone();
     let name = username.clone();
 
-    // Spawn a task that takes messages from the websocket, prepends the user
-    // name, and sends them to all broadcast subscribers.
+    // Receives messages from the websocket and then forwards them to the global channel as a
+    // ChatMsg.
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             let msg = ChatMsg {
@@ -155,12 +154,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         }
     });
 
-    // If any one of the tasks run to completion, we abort the other.
     tokio::select! {
         _ = &mut send_task => recv_task.abort(),
         _ = &mut recv_task => send_task.abort(),
     };
 
-    // Remove username from map so new clients can take it again.
     state.user_set.lock().unwrap().remove(&username);
 }
