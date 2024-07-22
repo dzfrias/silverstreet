@@ -10,6 +10,7 @@ serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
 shuttle-axum = "0.46.0"
 shuttle-runtime = "0.46.0"
+smol_str = { version = "0.2.2", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.4", features = ["util"] }
 tracing = "0.1"

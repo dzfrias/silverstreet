@@ -1,3 +1,5 @@
+mod username;
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -14,13 +16,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::sync::broadcast;
+use tracing::warn;
+
+use self::username::Username;
 
 const MESSAGE_QUEUE_SIZE: usize = 20;
+const CHANNEL_CAPACITY: usize = 100;
 
 /// Main application state.
 struct AppState {
     /// This tracks which usernames have been taken, since all usernames must be unique.
-    user_set: Mutex<HashSet<String>>,
+    user_set: Mutex<HashSet<Username>>,
     /// Channel used to send messages to all connected clients.
     tx: broadcast::Sender<AppMsg>,
     /// A queue to maintain previous chat messages.
@@ -28,7 +34,16 @@ struct AppState {
 }
 
 impl AppState {
-    fn broadcast_msg(&self, msg: ChatMsg) {
+    fn new(tx: broadcast::Sender<AppMsg>) -> Self {
+        Self {
+            user_set: Mutex::new(HashSet::default()),
+            tx,
+            msg_queue: Mutex::new(VecDeque::with_capacity(MESSAGE_QUEUE_SIZE)),
+        }
+    }
+
+    /// Send a message in the chat, storing it in the message queue too.
+    fn send_chat(&self, msg: ChatMsg) {
         let mut msg_queue = self.msg_queue.lock().unwrap();
         if msg_queue.len() == MESSAGE_QUEUE_SIZE {
             msg_queue.pop_front();
@@ -48,21 +63,14 @@ enum AppMsg {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct ChatMsg {
-    user: String,
+    user: Username,
     contents: String,
 }
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
-    let user_set = Mutex::new(HashSet::new());
-    let (tx, _rx) = broadcast::channel(100);
-
-    let app_state = Arc::new(AppState {
-        user_set,
-        tx,
-        msg_queue: VecDeque::with_capacity(MESSAGE_QUEUE_SIZE).into(),
-    });
-
+    let (tx, _rx) = broadcast::channel(CHANNEL_CAPACITY);
+    let app_state = Arc::new(AppState::new(tx));
     let router = Router::new()
         .route("/websocket", get(websocket_handler))
         .with_state(app_state);
@@ -77,42 +85,34 @@ async fn websocket_handler(
     ws.on_upgrade(|socket| websocket(socket, state))
 }
 
-// This function deals with a single websocket connection, i.e., a single
-// connected client / user, for which we will spawn two independent tasks (for
-// receiving / sending chat messages).
 async fn websocket(stream: WebSocket, state: Arc<AppState>) {
-    // By splitting, we can send and receive at the same time.
     let (mut sender, mut receiver) = stream.split();
 
-    // Username gets set in the receive loop, if it's valid.
-    let mut username = String::new();
-    // Loop until a text message is found.
+    let mut username = Username::default();
     while let Some(Ok(message)) = receiver.next().await {
-        if let Message::Text(name) = message {
-            // If username that is sent by client is not taken, fill username string.
-            check_username(&state, &mut username, &name);
-
-            // If not empty we want to quit the loop else we want to quit function.
-            if !username.is_empty() {
-                break;
-            } else {
-                // Only send our client that username is taken.
-                let _ = sender
-                    .send(Message::Text(
-                        serde_json::to_string(&AppMsg::Error("Username already taken".to_owned()))
-                            .expect("message serialization shouldn't fail"),
-                    ))
-                    .await;
-
-                return;
-            }
+        let Message::Text(name) = message else {
+            warn!("got strange first message: {message:?}");
+            continue;
+        };
+        let name = Username::from(name);
+        // Require unique names
+        if state.user_set.lock().unwrap().contains(&name) {
+            let _ = sender
+                .send(Message::Text(
+                    serde_json::to_string(&AppMsg::Error("Username already taken".to_owned()))
+                        .expect("message serialization shouldn't fail"),
+                ))
+                .await;
+            return;
         }
+        state.user_set.lock().unwrap().insert(name.clone());
+        username = name;
+        break;
     }
 
-    // We subscribe *before* sending the "joined" message, so that we will also
-    // display it to our client.
     let mut rx = state.tx.subscribe();
 
+    // Send all previous messages in the queue
     let _ = state.tx.send(AppMsg::ChatMsgList {
         msgs: state
             .msg_queue
@@ -151,7 +151,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 user: name.clone(),
                 contents: text,
             };
-            state_clone.broadcast_msg(msg);
+            state_clone.send_chat(msg);
         }
     });
 
@@ -163,14 +163,4 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     // Remove username from map so new clients can take it again.
     state.user_set.lock().unwrap().remove(&username);
-}
-
-fn check_username(state: &AppState, string: &mut String, name: &str) {
-    let mut user_set = state.user_set.lock().unwrap();
-
-    if !user_set.contains(name) {
-        user_set.insert(name.to_owned());
-
-        string.push_str(name);
-    }
 }
