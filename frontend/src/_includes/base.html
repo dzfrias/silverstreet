@@ -14,6 +14,16 @@
           <li class="name"><a href="/">SilverStreet</a></li>
           <li><a href="/catalogue">Catalogue</a></li>
           <li><a href="/random">Random!</a></li>
+          <li>
+            <button
+              id="volume-btn"
+              onclick="toggleVolume()"
+              class="volume"
+              aria-label="Toggle sound"
+            >
+              {% include "volume_on.svg" %}
+            </button>
+          </li>
         </ul>
         <div class="search-container">
           <input class="search" type="text" name="search" value="" />
@@ -21,6 +31,19 @@
         </div>
       </nav>
     </header>
-    <main>{{ content | safe }}</main>
+    <main>{% block content %} {{ content | safe }} {% endblock %}</main>
+
+    <script>
+      const volumeBtn = document.getElementById("volume-btn");
+      let volumeOn = true;
+      function toggleVolume() {
+        if (volumeOn) {
+          volumeBtn.innerHTML = `{% include "volume_off.svg" %}`;
+        } else {
+          volumeBtn.innerHTML = `{% include "volume_on.svg" %}`;
+        }
+        volumeOn = !volumeOn;
+      }
+    </script>
   </body>
 </html>

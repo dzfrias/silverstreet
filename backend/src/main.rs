@@ -5,18 +5,24 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
+    http::{
+        header::{AUTHORIZATION, CONTENT_TYPE},
+        HeaderValue, Method,
+    },
     response::IntoResponse,
-    routing::get,
-    Router,
+    routing::{get, post},
+    Json, Router,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashSet, VecDeque},
     sync::{Arc, Mutex},
 };
 use tokio::sync::broadcast;
-use tracing::warn;
+use tower_http::cors::{AllowOrigin, CorsLayer};
+use tracing::{info, warn};
 
 use self::username::Username;
 
@@ -31,14 +37,16 @@ struct AppState {
     tx: broadcast::Sender<AppMsg>,
     /// A queue to maintain previous chat messages.
     msg_queue: Mutex<VecDeque<ChatMsg>>,
+    secrets: shuttle_runtime::SecretStore,
 }
 
 impl AppState {
-    fn new(tx: broadcast::Sender<AppMsg>) -> Self {
+    fn new(tx: broadcast::Sender<AppMsg>, secrets: shuttle_runtime::SecretStore) -> Self {
         Self {
             user_set: Mutex::new(HashSet::default()),
             tx,
             msg_queue: Mutex::new(VecDeque::with_capacity(MESSAGE_QUEUE_SIZE)),
+            secrets,
         }
     }
 
@@ -68,11 +76,22 @@ struct ChatMsg {
 }
 
 #[shuttle_runtime::main]
-async fn main() -> shuttle_axum::ShuttleAxum {
+async fn main(
+    #[shuttle_runtime::Secrets] secrets: shuttle_runtime::SecretStore,
+) -> shuttle_axum::ShuttleAxum {
     let (tx, _rx) = broadcast::channel(CHANNEL_CAPACITY);
-    let app_state = Arc::new(AppState::new(tx));
+    let app_state = Arc::new(AppState::new(tx, secrets));
+
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_origin(AllowOrigin::exact(HeaderValue::from_static(
+            "http://localhost:8080",
+        )))
+        .allow_headers([AUTHORIZATION, CONTENT_TYPE]);
     let router = Router::new()
         .route("/websocket", get(websocket_handler))
+        .route("/translate", post(translate_handler))
+        .layer(cors)
         .with_state(app_state);
 
     Ok(router.into())
@@ -83,6 +102,69 @@ async fn websocket_handler(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(|socket| websocket(socket, state))
+}
+
+#[derive(Debug, Deserialize)]
+struct TranslateMessage {
+    en_text: String,
+}
+
+#[derive(Serialize)]
+struct TranslateResponse {
+    zh_text: String,
+}
+
+async fn translate_handler(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<TranslateMessage>,
+) -> Json<TranslateResponse> {
+    info!("received request to translate");
+    #[derive(Serialize)]
+    struct TranslateBody {
+        text: Vec<String>,
+        target_lang: String,
+        source_lang: String,
+    }
+
+    #[derive(Deserialize)]
+    struct DeepLResponseText {
+        text: String,
+    }
+
+    #[derive(Deserialize)]
+    struct DeepLResponse {
+        translations: Vec<DeepLResponseText>,
+    }
+
+    let client = Client::new();
+    let body = TranslateBody {
+        text: vec![payload.en_text],
+        target_lang: "EN".to_owned(),
+        source_lang: "ZH".to_owned(),
+    };
+    let mut res = client
+        .post("https://api-free.deepl.com/v2/translate")
+        .header(
+            "Authorization",
+            format!(
+                "DeepL-Auth-Key {}",
+                state.secrets.get("DEEPL_API_KEY").unwrap()
+            ),
+        )
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(&body).unwrap())
+        .send()
+        .await
+        .unwrap()
+        .json::<DeepLResponse>()
+        .await
+        .unwrap();
+
+    let translated = std::mem::take(&mut res.translations[0].text);
+    info!("got: {}", &translated);
+    Json(TranslateResponse {
+        zh_text: translated,
+    })
 }
 
 /// Handles a single websocket connection.

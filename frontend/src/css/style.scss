@@ -1,6 +1,8 @@
 @use "variables.scss";
 @use "mixins.scss";
 
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap");
+
 *,
 *::before,
 *::after {
@@ -13,9 +15,13 @@
   font: inherit;
 }
 
+::selection {
+  background: #e0aaaa;
+}
+
 :root {
-  // Taken from https://matthewjamestaylor.com/responsive-font-size
-  font-size: calc(14px + 0.390625vw);
+  font-size: 16px;
+  font-family: "Roboto Mono", monospace;
 }
 
 body {
@@ -23,6 +29,21 @@ body {
   background: variables.$bg;
   color: variables.$fg;
   line-height: 1.5;
+  counter-reset: headings2;
+}
+
+em {
+  background: #d6d854;
+  margin: 0px 2px;
+  padding: 3px 7px;
+}
+
+main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 4rem;
 }
 
 img,
@@ -35,14 +56,31 @@ video {
 
 h1 {
   font-size: 2rem;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
   font-weight: bold;
 }
 
 h2 {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   margin-bottom: 1rem;
   font-weight: bold;
+  counter-reset: headings3;
+
+  &::before {
+    content: counter(headings2) ". ";
+    counter-increment: headings2;
+  }
+}
+
+h3 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+
+  &::before {
+    content: counter(headings2) "." counter(headings3) ". ";
+    counter-increment: headings3;
+  }
 }
 
 nav {
@@ -64,7 +102,7 @@ header {
     display: flex;
     column-gap: 1.9rem;
     row-gap: 0.3rem;
-    align-items: baseline;
+    align-items: flex-end;
     flex-wrap: wrap;
 
     li {
@@ -79,6 +117,7 @@ p:not(:last-child) {
 
 strong {
   font-weight: bold;
+  font-style: italic;
 }
 
 a {
@@ -119,7 +158,6 @@ button {
   &-container {
     display: flex;
     gap: 0.5rem;
-    align-items: center;
   }
 
   &-button > svg {
@@ -150,4 +188,41 @@ button {
 .far {
   display: inline-block;
   margin-top: 2rem;
+}
+
+ol,
+ul {
+  list-style-position: inside;
+  margin-bottom: 1rem;
+}
+
+.note-container {
+  width: 75ch;
+  border-left: 5px dashed variables.$bg-alt;
+  border-right: 5px dashed variables.$bg-alt;
+  padding-right: 5rem;
+  padding-left: 1.5rem;
+}
+
+.example-box {
+  background: #e0d3bc;
+  padding: 1rem;
+  border: 4px solid black;
+  margin-bottom: 1rem;
+}
+
+.translation-box {
+  position: absolute;
+  background: #c2cead;
+  padding: 1rem;
+  border: 4px solid black;
+  left: 1rem;
+  max-width: 25ch;
+}
+
+.volume {
+  padding: 2px;
+  width: 35px;
+  height: 35px;
+  background: white;
 }

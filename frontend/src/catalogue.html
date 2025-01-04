@@ -1,0 +1,14 @@
+---
+title: Catalogue
+layout: base
+---
+
+<h1>Catalogue</h1>
+
+<div class="notes-grid">
+{%- for note in collections.note -%}
+  <div class="note">
+    <span class="note-title">{{ note.data.title }}</span>
+  </div>
+{%- endfor -%}
+</div>

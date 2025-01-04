@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="note-container">
+  <h1>{{ title }}</h1>
+  {{ super() }}
+</div>
+<script>
+  {% include "note.js" %}
+</script>
+{% endblock %}
