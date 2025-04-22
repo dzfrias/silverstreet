@@ -1,6 +1,6 @@
 function containsOnlyChineseCharacters(str) {
   // Regular expression to match Chinese characters
-  const chineseCharRegex = /^[\u4e00-\u9fff!.?\s]+$/;
+  const chineseCharRegex = /^[\u4e00-\u9fff!.?\s。，？！]+$/;
   return chineseCharRegex.test(str);
 }
 
@@ -25,16 +25,13 @@ async function translate(en_text) {
     console.log("translation cache hit");
     return cache.get(en_text);
   }
-  const res = await fetch(
-    "https://silverstreet-server.shuttleapp.rs/translate",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        en_text: en_text,
-      }),
-      headers: { "Content-Type": "application/json" },
-    },
-  );
+  const res = await fetch("https://silverstreet-zxny.shuttle.app/translate", {
+    method: "POST",
+    body: JSON.stringify({
+      en_text: en_text,
+    }),
+    headers: { "Content-Type": "application/json" },
+  });
   const json = await res.json();
   cache.set(en_text, json.zh_text);
   return json.zh_text;

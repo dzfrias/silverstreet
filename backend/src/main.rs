@@ -177,13 +177,14 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
             warn!("got strange first message: {message:?}");
             continue;
         };
-        let name = Username::from(name);
+        let name = Username::from(name.as_str());
         // Require unique names
         if state.user_set.lock().unwrap().contains(&name) {
             let _ = sender
                 .send(Message::Text(
                     serde_json::to_string(&AppMsg::Error("Username already taken".to_owned()))
-                        .expect("message serialization shouldn't fail"),
+                        .expect("message serialization shouldn't fail")
+                        .into(),
                 ))
                 .await;
             return;
@@ -211,7 +212,9 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         while let Ok(msg) = rx.recv().await {
             if sender
                 .send(Message::Text(
-                    serde_json::to_string(&msg).expect("message serialization shouldn't fail"),
+                    serde_json::to_string(&msg)
+                        .expect("message serialization shouldn't fail")
+                        .into(),
                 ))
                 .await
                 .is_err()
@@ -230,7 +233,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             let msg = ChatMsg {
                 user: name.clone(),
-                contents: text,
+                contents: text.to_string(),
             };
             state_clone.send_chat(msg);
         }

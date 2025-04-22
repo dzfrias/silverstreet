@@ -36,10 +36,24 @@ module.exports = (config) => {
     return defaultHeadingCloseRenderer(tokens, idx, options, env, self);
   };
 
+  config.addShortcode("examples", function (lvl, examples) {
+    return `<div class="example-box">
+<h${lvl}>Examples</h${lvl}>
+<ol>
+${examples.map((e) => `<li>${e}</li>`).join("\n")}
+<ol>
+</div>`;
+  });
+  config.addPairedShortcode("box", function (content, type = "info") {
+    return `<div class="${type}-box">
+${content}
+</div>`;
+  });
+
   config.setLibrary("md", md);
 
   return {
-    markdownTemplateEngine: false,
+    markdownTemplateEngine: "njk",
     dataTemplateEngine: "njk",
     htmlTemplateEngine: "njk",
     dir: {

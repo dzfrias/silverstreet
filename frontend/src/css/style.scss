@@ -120,6 +120,10 @@ strong {
   font-style: italic;
 }
 
+li > p {
+  display: inline;
+}
+
 a {
   @include mixins.shadow;
 
@@ -172,6 +176,9 @@ button {
   display: inline-block;
   max-width: 60ch;
   padding: 1rem;
+  margin-bottom: 1rem;
+  background: #cbcbcb;
+  width: 100%;
 }
 
 @for $i from 0 through 2 {
@@ -202,13 +209,6 @@ ul {
   border-right: 5px dashed variables.$bg-alt;
   padding-right: 5rem;
   padding-left: 1.5rem;
-}
-
-.example-box {
-  background: #e0d3bc;
-  padding: 1rem;
-  border: 4px solid black;
-  margin-bottom: 1rem;
 }
 
 .translation-box {
